@@ -11,6 +11,8 @@ import (
 
 const MAGIC_NUMBER uint32 = 0xCAFEBABE;
 
+var count uint64 = 0
+
 func LoadJar(filename string) ([]*ClassFile) {
 	var closer, err = zip.OpenReader(filename)
 	if err != nil {
@@ -84,7 +86,15 @@ func readConstantPool(reader io.ReadCloser) ([]ConstantPoolEntry) {
 	poolSize := read16(reader)
 	pool := make([]ConstantPoolEntry, 0)
 	for i := 0; i < int(poolSize - 1); i++ {
-		pool = append(pool, readConstantPoolEntry(reader, read8(reader)))
+		entry := readConstantPoolEntry(reader, read8(reader))
+		pool = append(pool, entry)
+
+		//8-byte constants take up two entries for some stupid fucking reason
+		//https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4.5
+		if entry.Type() == cp_long || entry.Type() == cp_double {
+			pool = append(pool, nil)
+			i++
+		}
 	}
 	return pool
 }
@@ -159,32 +169,26 @@ func readMethods(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEntry
 		method := ClassMethod{}
 		//read out access values for the field
 		read16(reader)
-		method.Name = lookupUTF8(class, cp, read16(reader))
-		method.ReturnType = lookupUTF8(class, cp, read16(reader))
-		readAttributes(reader, class, cp)
+
+		nameIndex := read16(reader)
+		descIndex := read16(reader)
+
+		method.Name = lookupUTF8(class, cp, nameIndex)
+		method.Description = lookupUTF8(class, cp, descIndex)
+		method.Attributes = readAttributes(reader, class, cp)
+		fmt.Print("\t-------------------------------------\n")
+		fmt.Printf("\tMethod: %v\n", method.Name)
 		methods = append(methods, method)
+		//fmt.Printf("%v:/**/ %v:  %v %v            %v\n", method.Name, method.Description, nameIndex, descIndex, count)
 	}
 	return methods
-}
-
-func readAttributes(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEntry) ([]string) {
-	attrCount := read16(reader)
-	attrs := make([]string, 0)
-	for i := 0; i < int(attrCount); i++ {
-		attrs = append(attrs, lookupUTF8(class, cp, read16(reader)))
-
-		//read out the parts that we don't care about
-		attrLength := read32(reader)
-		readSimple32(reader, attrLength)
-	}
-	return attrs
 }
 
 func lookupClassEntry(class *ClassFile, cp *[]ConstantPoolEntry, index uint16) (string) {
 	pool := *cp
 	entry := pool[index - 1]
 	if (entry.Type() != cp_class) {
-		log.Fatal(fmt.Sprintf("Class %v was malformed!", class.CanonicalName))
+		log.Fatal(fmt.Sprintf("Class %v was malformed!", class.FileName))
 	}
 	thisEntry, _ := entry.(ConstantPool_Class)
 	this, _ := pool[thisEntry.NameIndex - 1].(ConstantPool_UTF8)
@@ -193,23 +197,29 @@ func lookupClassEntry(class *ClassFile, cp *[]ConstantPoolEntry, index uint16) (
 
 func lookupUTF8(class *ClassFile, cp *[]ConstantPoolEntry, index uint16) (string) {
 	pool := *cp
+	if index == 0 {
+		log.Fatal("Cannot find entry at index -1")
+	}
 	entry := pool[index - 1]
 	if (entry.Type() != cp_utf8) {
-		log.Fatal(fmt.Sprintf("Class %v was malformed!", class.CanonicalName))
+		log.Fatal(fmt.Sprintf("Class %v was malformed!", class.FileName))
 	}
 	this, _ := entry.(ConstantPool_UTF8)
 	return this.Value
 }
 
 func read8(reader io.ReadCloser) (uint8) {
+	count += 1
 	return uint8(readSimple(reader, 1)[0])
 }
 
 func read16(reader io.ReadCloser) (uint16) {
+	count += 2
 	return binary.BigEndian.Uint16(readSimple(reader, 2))
 }
 
 func read32(reader io.ReadCloser) (uint32) {
+	count += 4
 	return binary.BigEndian.Uint32(readSimple(reader, 4))
 }
 
@@ -219,6 +229,11 @@ func readSimple(reader io.ReadCloser, length uint16) ([]byte) {
 	if err != nil && err != io.EOF {
 		log.Fatal(fmt.Sprintf("Could not read class file, got error %v", err))
 	}
+	if err == io.EOF {
+		fmt.Print("EOF reached!\n")
+	}
+
+	count += uint64(length)
 	return content
 }
 
@@ -228,6 +243,10 @@ func readSimple32(reader io.ReadCloser, length uint32) ([]byte) {
 	if err != nil && err != io.EOF {
 		log.Fatal(fmt.Sprintf("Could not read class file, got error %v", err))
 	}
+	if err == io.EOF {
+		fmt.Print("EOF reached!\n")
+	}
+	count += uint64(length)
 	return content
 }
 

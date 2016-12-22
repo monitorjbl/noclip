@@ -23,9 +23,9 @@ type ClassField struct {
 }
 
 type ClassMethod struct {
-	Name       string
-	ReturnType string
-	Parameters []string
+	Name        string
+	Description string
+	Attributes []string
 }
 
 func (c ClassFile) ToString() (string) {
