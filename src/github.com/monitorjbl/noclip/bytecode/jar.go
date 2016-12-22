@@ -77,7 +77,7 @@ func loadClassFile(classfile *zip.File) (*ClassFile) {
 	class.Methods = readMethods(reader, class, &constantPool)
 
 	//read attributes
-	readAttributes(reader, class, &constantPool)
+	//readAttributes(reader, class, &constantPool)
 
 	return class
 }
@@ -110,10 +110,8 @@ func readConstantPoolEntry(reader io.ReadCloser, tag uint8) (ConstantPoolEntry) 
 	case cp_float:
 		return ConstantPool_Float{Value:read32(reader)}
 	case cp_long:
-		//TODO: deal with the fact that 8-byte constants take up two entries
 		return ConstantPool_Long{High:read32(reader), Low:read32(reader)}
 	case cp_double:
-		//TODO: deal with the fact that 8-byte constants take up two entries
 		return ConstantPool_Double{High:read32(reader), Low:read32(reader)}
 	case cp_class:
 		return ConstantPool_Class{NameIndex:read16(reader)}
@@ -156,7 +154,7 @@ func readFields(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEntry)
 		read16(reader)
 		field.Name = lookupUTF8(class, cp, read16(reader))
 		field.Type = lookupUTF8(class, cp, read16(reader))
-		readAttributes(reader, class, cp)
+		readAttributes(reader, class, cp, field.Name)
 		fields = append(fields, field)
 	}
 	return fields
@@ -175,9 +173,9 @@ func readMethods(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEntry
 
 		method.Name = lookupUTF8(class, cp, nameIndex)
 		method.Description = lookupUTF8(class, cp, descIndex)
-		method.Attributes = readAttributes(reader, class, cp)
-		fmt.Print("\t-------------------------------------\n")
-		fmt.Printf("\tMethod: %v\n", method.Name)
+		method.Attributes = readAttributes(reader, class, cp, method.Name)
+		//fmt.Print("\t-------------------------------------\n")
+		//fmt.Printf("\tMethod: %v %v\n", method.Name, method.Description)
 		methods = append(methods, method)
 		//fmt.Printf("%v:/**/ %v:  %v %v            %v\n", method.Name, method.Description, nameIndex, descIndex, count)
 	}
@@ -225,12 +223,22 @@ func read32(reader io.ReadCloser) (uint32) {
 
 func readSimple(reader io.ReadCloser, length uint16) ([]byte) {
 	content := make([]byte, length)
-	_, err := reader.Read(content)
+	if length == 8208 {
+		fmt.Print("")
+	}
+	i, err := reader.Read(content)
 	if err != nil && err != io.EOF {
 		log.Fatal(fmt.Sprintf("Could not read class file, got error %v", err))
 	}
 	if err == io.EOF {
-		fmt.Print("EOF reached!\n")
+		log.Fatal("EOF reached!\n")
+	}
+
+	//apparently the reader can sometimes return less than the number of bytes
+	//requested. when this happens, tell it to try again.
+	if i != int(length) {
+		makeup := readSimple(reader, length - uint16(i))
+		content = append(content[:i], makeup...)
 	}
 
 	count += uint64(length)
@@ -239,13 +247,22 @@ func readSimple(reader io.ReadCloser, length uint16) ([]byte) {
 
 func readSimple32(reader io.ReadCloser, length uint32) ([]byte) {
 	content := make([]byte, length)
-	_, err := reader.Read(content)
+	i, err := reader.Read(content)
+
 	if err != nil && err != io.EOF {
 		log.Fatal(fmt.Sprintf("Could not read class file, got error %v", err))
 	}
 	if err == io.EOF {
-		fmt.Print("EOF reached!\n")
+		log.Fatal("EOF reached!\n")
 	}
+
+	//apparently the reader can sometimes return less than the number of bytes
+	//requested. when this happens, tell it to try again.
+	if i != int(length) {
+		makeup := readSimple32(reader, length - uint32(i))
+		content = append(content[:i], makeup...)
+	}
+
 	count += uint64(length)
 	return content
 }

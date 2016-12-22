@@ -13,23 +13,23 @@ type LocalVariableTableEntry struct {
 	index            uint16;
 }
 
-func readAttributes(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEntry) ([]string) {
+func readAttributes(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEntry, method string) ([]string) {
 	attrCount := read16(reader)
 	attrs := make([]string, 0)
-	fmt.Printf("\tAttrs: %v\n", attrCount)
+	//fmt.Printf("\tAttrs: %v\n", attrCount)
 	for i := 0; i < int(attrCount); i++ {
-		attrs = append(attrs, readAttribute(reader, class, cp))
+		attrs = append(attrs, readAttribute(reader, class, cp, method))
 	}
 	return attrs
 }
 
-func readAttribute(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEntry) (string) {
+func readAttribute(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEntry, method string) (string) {
 	attrName := lookupUTF8(class, cp, read16(reader))
 	attrLength := read32(reader)
-	fmt.Printf("\tAttr %v: %v\n", attrName, attrLength)
+	//fmt.Printf("\tAttr %v: %v\n", attrName, attrLength)
 	switch attrName {
 	case "Code":
-		readCodeAttribute(reader, class, cp)
+		readCodeAttribute(reader, class, cp, method)
 		break
 	case "LineNumberTable":
 		readLineNumberTableAttribute(reader)
@@ -103,31 +103,31 @@ func readLocalVariableTableAttribute(reader io.ReadCloser, class *ClassFile, cp 
 		entry.descriptor_index = read16(reader)
 		entry.index = read16(reader)
 
-		name := lookupUTF8(class, cp, entry.name_index)
-		varType := lookupUTF8(class, cp, entry.descriptor_index)
-		fmt.Printf("\t\t\tVariable %v [%v]\n", name, varType)
+		//name := lookupUTF8(class, cp, entry.name_index)
+		//varType := lookupUTF8(class, cp, entry.descriptor_index)
+		//fmt.Printf("\t\t\tVariable %v [%v]\n", name, varType)
 	}
 }
 
-func readCodeAttribute(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEntry) {
+func readCodeAttribute(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEntry, method string) {
 	//max_stack
 	read16(reader)
 	//max_locals
 	read16(reader)
 	//code_length
 	code_length := read32(reader)
-	fmt.Printf("\t\tCode: %v\n", code_length)
+	//fmt.Printf("\t\tCode: %v\n", code_length)
 
 	//read out all bytecode
 	readSimple32(reader, code_length)
 
 	//exception_table_length
 	exception_table_length := read16(reader)
-	fmt.Printf("\t\tExceptionTable: %v\n", exception_table_length)
+	//fmt.Printf("\t\tExceptionTable: %v\n", exception_table_length*8)
 
 	//read out all exception handler info
 	readSimple(reader, exception_table_length * 8)
 
 	//read out all sub attributes
-	readAttributes(reader, class, cp)
+	readAttributes(reader, class, cp, method)
 }
