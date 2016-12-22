@@ -156,4 +156,3 @@ type ConstantPool_MethodType struct {
 func (c ConstantPool_MethodType) Type() (uint8) {
 	return cp_method_type
 }
-
