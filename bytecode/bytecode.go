@@ -2,7 +2,6 @@ package bytecode
 
 import (
 	"io"
-	"fmt"
 )
 
 type LocalVariableTableEntry struct {
@@ -37,10 +36,16 @@ func readAttribute(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEnt
 	case "LocalVariableTable":
 		readLocalVariableTableAttribute(reader, class, cp)
 		break
+	case "LocalVariableTypeTable":
+		readLocalVariableTypeTableAttribute(reader, attrLength)
+		break
 	case "ConstantValue":
 		readConstantValueAttribute(reader)
 		break
 	case "Synthetic":
+		break
+	case "Signature":
+		readSignatureAttribute(reader)
 		break
 	case "SourceFile":
 		readSourceFileAttribute(reader)
@@ -53,11 +58,32 @@ func readAttribute(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEnt
 	case "Exceptions":
 		readExceptionsAttribute(reader)
 		break
+	case "RuntimeVisibleAnnotations":
+		readRuntimeVisibleAnnotationsAttribute(reader, attrLength)
+		break
+	case "StackMapTable":
+		readStackMapTableAttribute(reader, attrLength)
+		break
 	default:
-		fmt.Printf("Not sure what to do with %v, just reading out %v bytes\n", attrName, attrLength)
+		log.Debugf("Not sure what to do with %v, just reading out %v bytes\n", attrName, attrLength)
 		readSimple32(reader, attrLength)
 	}
 	return attrName
+}
+
+func readSignatureAttribute(reader io.ReadCloser) {
+	//TODO: actually do something with this
+	readSimple(reader, 2)
+}
+
+func readStackMapTableAttribute(reader io.ReadCloser, length uint32) {
+	//TODO: actually do something with this
+	readSimple32(reader, length)
+}
+
+func readRuntimeVisibleAnnotationsAttribute(reader io.ReadCloser, length uint32) {
+	//TODO: actually do something with this
+	readSimple32(reader, length)
 }
 
 func readSourceFileAttribute(reader io.ReadCloser) {
@@ -89,6 +115,11 @@ func readExceptionsAttribute(reader io.ReadCloser) {
 	number_of_exceptions := read16(reader)
 	//read out all exceptions
 	readSimple(reader, number_of_exceptions * 2)
+}
+
+func readLocalVariableTypeTableAttribute(reader io.ReadCloser, length uint32) {
+	//TODO: actually do something with this
+	readSimple32(reader, length)
 }
 
 func readLocalVariableTableAttribute(reader io.ReadCloser, class *ClassFile, cp *[]ConstantPoolEntry) {

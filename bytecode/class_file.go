@@ -29,6 +29,6 @@ type ClassMethod struct {
 }
 
 func (c ClassFile) ToString() (string) {
-	return fmt.Sprintf("%v, %v", c.CanonicalName, c.Methods)
+	return fmt.Sprintf("%v", c.CanonicalName)
 }
 

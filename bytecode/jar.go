@@ -6,17 +6,17 @@ import (
 	"fmt"
 	"io"
 	"encoding/binary"
-	"log"
+	"github.com/op/go-logging"
 )
 
 const MAGIC_NUMBER uint32 = 0xCAFEBABE;
 
-var count uint64 = 0
+var log = logging.MustGetLogger("bytecode")
 
 func LoadJar(filename string) ([]*ClassFile) {
 	var closer, err = zip.OpenReader(filename)
 	if err != nil {
-		fmt.Printf("Error! %v", err)
+		log.Warningf("Error! %v", err)
 	}
 
 	var files = closer.File
@@ -36,7 +36,7 @@ func loadClasses(files *[]*zip.File) ([]*ClassFile) {
 func loadClassFile(classfile *zip.File) (*ClassFile) {
 	reader, err := classfile.Open()
 	if err != nil {
-		fmt.Printf("Error! %v", err)
+		log.Warningf("Error! %v", err)
 	}
 
 	//generate class file
@@ -44,7 +44,7 @@ func loadClassFile(classfile *zip.File) (*ClassFile) {
 	class.FileName = classfile.Name
 	class.Size = classfile.FileInfo().Size()
 
-	fmt.Printf("Loading class %v\n", class.FileName)
+	log.Debugf("Loading class %v\n", class.FileName)
 	//load magic value
 	magic := read32(reader)
 	if magic != MAGIC_NUMBER {
@@ -186,7 +186,7 @@ func lookupClassEntry(class *ClassFile, cp *[]ConstantPoolEntry, index uint16) (
 	pool := *cp
 	entry := pool[index - 1]
 	if (entry.Type() != cp_class) {
-		log.Fatal(fmt.Sprintf("Class %v was malformed!", class.FileName))
+		log.Fatalf("Class %v was malformed!", class.FileName)
 	}
 	thisEntry, _ := entry.(ConstantPool_Class)
 	this, _ := pool[thisEntry.NameIndex - 1].(ConstantPool_UTF8)
@@ -200,35 +200,29 @@ func lookupUTF8(class *ClassFile, cp *[]ConstantPoolEntry, index uint16) (string
 	}
 	entry := pool[index - 1]
 	if (entry.Type() != cp_utf8) {
-		log.Fatal(fmt.Sprintf("Class %v was malformed!", class.FileName))
+		log.Fatalf("Class %v was malformed!", class.FileName)
 	}
 	this, _ := entry.(ConstantPool_UTF8)
 	return this.Value
 }
 
 func read8(reader io.ReadCloser) (uint8) {
-	count += 1
 	return uint8(readSimple(reader, 1)[0])
 }
 
 func read16(reader io.ReadCloser) (uint16) {
-	count += 2
 	return binary.BigEndian.Uint16(readSimple(reader, 2))
 }
 
 func read32(reader io.ReadCloser) (uint32) {
-	count += 4
 	return binary.BigEndian.Uint32(readSimple(reader, 4))
 }
 
 func readSimple(reader io.ReadCloser, length uint16) ([]byte) {
 	content := make([]byte, length)
-	if length == 8208 {
-		fmt.Print("")
-	}
 	i, err := reader.Read(content)
 	if err != nil && err != io.EOF {
-		log.Fatal(fmt.Sprintf("Could not read class file, got error %v", err))
+		log.Fatalf("Could not read class file, got error %v", err)
 	}
 	if err == io.EOF {
 		log.Fatal("EOF reached!\n")
@@ -241,7 +235,6 @@ func readSimple(reader io.ReadCloser, length uint16) ([]byte) {
 		content = append(content[:i], makeup...)
 	}
 
-	count += uint64(length)
 	return content
 }
 
@@ -250,7 +243,7 @@ func readSimple32(reader io.ReadCloser, length uint32) ([]byte) {
 	i, err := reader.Read(content)
 
 	if err != nil && err != io.EOF {
-		log.Fatal(fmt.Sprintf("Could not read class file, got error %v", err))
+		log.Fatalf("Could not read class file, got error %v", err)
 	}
 	if err == io.EOF {
 		log.Fatal("EOF reached!\n")
@@ -263,7 +256,6 @@ func readSimple32(reader io.ReadCloser, length uint32) ([]byte) {
 		content = append(content[:i], makeup...)
 	}
 
-	count += uint64(length)
 	return content
 }
 
