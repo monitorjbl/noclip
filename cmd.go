@@ -40,10 +40,6 @@ func main() {
 		"/Users/thundermoose/.m2/repository/com/monitorjbl/json-view/0.14/json-view-0.14.jar",
 
 	}
-	//zip:="/Users/thundermoose/Downloads/commons-lang-2.6/org/apache/commons/lang/StringUtils.class.zip"
-	//zip:="/Users/thundermoose/.m2/repository/commons-lang/commons-lang/2.6/commons-lang-2.6.jar"
-	//zip:="/Users/thundermoose/.m2/repository/org/springframework/org.springframework.aop/3.2.3.RELEASE/org.springframework.aop-3.2.3.RELEASE.jar"
-	//zip := "/Users/thundermoose/.m2/repository/com/monitorjbl/json-view/0.14/json-view-0.14.jar"
 
 	for _, jar := range jars {
 		for _, c := range bytecode.LoadJar(jar) {

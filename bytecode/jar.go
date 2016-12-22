@@ -76,10 +76,22 @@ func loadClassFile(classfile *zip.File) (*ClassFile) {
 	//load methods
 	class.Methods = readMethods(reader, class, &constantPool)
 
-	//read attributes
-	//readAttributes(reader, class, &constantPool)
+	//find all class references in the constant pool
+	class.ClassReferences = findClassRefs(class, &constantPool)
 
 	return class
+}
+
+func findClassRefs(class *ClassFile, cp *[]ConstantPoolEntry) ([]string) {
+	refs := make([]string, 0)
+	pool := *cp
+	for _, e := range pool {
+		if e != nil && e.Type() == cp_class {
+			cls := e.(ConstantPool_Class)
+			refs = append(refs, lookupUTF8(class, cp, cls.NameIndex))
+		}
+	}
+	return refs
 }
 
 func readConstantPool(reader io.ReadCloser) ([]ConstantPoolEntry) {
